@@ -9,7 +9,8 @@ setup(
     , url='https://github.com/oxsoftdev/poloniexws'
     , license='LICENSE.txt'
     , install_requires=[
-        'dppy'
+        'autobahn'
+        , 'dppy'
     ]
     , dependency_links=[
         'https://github.com/oxsoftdev/dppy/tarball/master#egg=dppy-0.1'
