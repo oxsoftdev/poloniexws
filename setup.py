@@ -9,7 +9,7 @@ setup(
     , url='https://github.com/oxsoftdev/poloniexws'
     , license='LICENSE.txt'
     , install_requires=[
-        'autobahn'
+        'dppy'
         , 'tornado'
     ]
     , dependency_links=[

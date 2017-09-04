@@ -1,11 +1,11 @@
-import asyncio
+import json
 import logging
-from autobahn.asyncio.wamp import ApplicationRunner
-from autobahn.asyncio.wamp import ApplicationSession
+import tornado.gen
+import tornado.websocket
 from datetime import datetime
-from dppy.creational import singleton
 from dppy.behavioral import pubsub
 from time import time
+
 
 #from .models import Stream
 
@@ -13,65 +13,53 @@ from time import time
 logger = logging.getLogger('poloniexws')
 
 
-class _Proxy(metaclass=singleton.MetaSingleton):
-
-    def run(self):
-        params = ('wss://api.poloniex.com:443', 'realm1')
-        runner = ApplicationRunner(*params)
-        runner.run(_Component)
-
-    @property
-    def books(self):
-        return self.__books
-
-    @books.setter
-    def books(self, books):
-        self.__books = books
-
-    @property
-    def publisher(self):
-        return self.__publisher
-
-    @publisher.setter
-    def publisher(self, publisher):
-        self.__publisher = publisher
-
-
-class _Component(ApplicationSession):
-
-    def onConnect(self):
-        logger.info("transport connected")
-        self.join(self.config.realm)
-
-    def onChallenge(self, challenge):
-        logger.info("authentication challenge received")
-
-    def onLeave(self, details):
-        logger.info("session left")
-
-    def onDisconnect(self):
-        logger.info("transport disconnected")
-        asyncio.get_event_loop().stop()
-
-    async def onJoin(self, details):
-        logger.info("session joined")
-
-        def onTicker(*args):
-            _Proxy().publisher.notify(args)
-        await self.subscribe(onTicker, 'ticker')
-
-        def onMarket(book):
-            def onTrade(*args, **kwargs):
-                _Proxy().publisher.notify(book, args, kwargs)
-        for book in _Proxy().books:
-            await self.subscribe(onMarket(book), book)
-
-
 class Client(pubsub.AbsPublisher):
 
-    def __init__(self, books):
-        self.proxy = _Proxy()
-        self.proxy.books = books
-        self.proxy.publisher = self
-        self.proxy.run()
+    def __init__(self, channels):
+        self._conn = None
+        self._url = 'wss://api2.poloniex.com'
+        self._channels = channels
+
+    @tornado.gen.coroutine
+    def connect(self):
+        logger.info("connecting")
+        try:
+            websocket_connect = tornado.websocket.websocket_connect
+            self._conn = yield websocket_connect(self._url)
+            self.subscribe()
+        except:
+            logger.exception("failed to connect")
+        else:
+            logger.info("connected")
+            self.listen()
+
+    @tornado.gen.coroutine
+    def listen(self):
+        while True:
+            try:
+                msg = yield self._conn.read_message()
+                if msg is None:
+                    logger.info("connection closed")
+                    self._conn = None
+                    break
+                else:
+                    data = json.loads(msg)
+                    timestamp = time()
+                    params = {
+                        'timestamp': timestamp,
+                        'datetime': datetime.fromtimestamp(timestamp),
+                        'data': data
+                    }
+                    self.notify(params)
+            except:
+                logger.exception("failed on listen")
+                raise
+
+    def subscribe(self):
+        for channel in self._channels:
+            logger.info("subscribing(channel=%s)" % channel)
+            self._conn.write_message(json.dumps({
+                'command': 'subscribe',
+                'channel': channel
+            }))
 
