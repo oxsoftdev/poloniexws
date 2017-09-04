@@ -10,7 +10,7 @@ setup(
     , license='LICENSE.txt'
     , install_requires=[
         'autobahn'
-        , 'dppy'
+        , 'tornado'
     ]
     , dependency_links=[
         'https://github.com/oxsoftdev/dppy/tarball/master#egg=dppy-0.1'
