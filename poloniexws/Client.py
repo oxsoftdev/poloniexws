@@ -7,9 +7,6 @@ from dppy.behavioral import pubsub
 from time import time
 
 
-#from .models import Stream
-
-
 logger = logging.getLogger('poloniexws')
 
 
@@ -45,12 +42,12 @@ class Client(pubsub.AbsPublisher):
                 else:
                     data = json.loads(msg)
                     timestamp = time()
-                    params = {
+                    o = {
                         'timestamp': timestamp,
                         'datetime': datetime.fromtimestamp(timestamp),
                         'data': data
                     }
-                    self.notify(params)
+                    self.notify(o)
             except:
                 logger.exception("failed on listen")
                 raise
